@@ -30,7 +30,17 @@ void object::Grab(
 			drop(); // TODO: error handling
 		}
 		Goto(what, pos, min, max, sens, filter);
-		grab();
+		grab(); // TODO: RawGrab()
+	}
+}
+
+void object::Grab(object what) {
+	while(load == what) {
+		if(load != null) {
+			drop(); // TODO: error handling
+		}
+		Goto(what);
+		grab(); // TODO: RawGrab()
 	}
 }
 

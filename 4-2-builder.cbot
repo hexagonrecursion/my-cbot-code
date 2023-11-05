@@ -1,0 +1,38 @@
+extern void object::BuilderBot() {
+	// unstuck the flying builder
+	turn(direction(radar(SpaceShip).position));
+	move(-20);
+	
+	int todo[] = GetBuildOrder();
+	for(int i = 0; i < sizeof(todo); ++i) {
+		if(radar(todo[i]) != null) {
+			continue;
+		}
+		goto(WaitTitanium().position);
+		build(todo[i]);
+		goto(space());
+	}
+}
+
+object object::WaitTitanium() {
+	object titanium;
+	do {
+		object grabber = WaitGrabber();
+		titanium = search(Titanium, grabber.position, 0, 30);
+	} while(titanium == null);
+	return titanium;
+}
+
+object WaitGrabber() {
+	while(true) {
+		int grabbers[] = {WheeledGrabber, TrackedGrabber, WingedGrabber};
+		object g[] = radarall(grabbers);
+		for(int i = 0; i < sizeof(g); ++i) {
+			if(g[i].energyCell == null) {
+				return g[i];
+			}
+		}
+	}
+	message("WaitGrabber: will never get here");
+	return null;
+}

@@ -1,0 +1,22 @@
+extern void object::WingedBuilderBot()
+{
+	DoBuildOnBountain(DefenseTower);
+	DoBuildOnBountain(RadarStation);
+}
+
+void DoBuildOnBountain(int what) {
+	point mountain(0, 90);
+	
+	if(radar(what) != null) {
+		return;
+	}
+	
+	object t;
+	do {
+		t = search(Titanium, mountain, 0, 100);
+	} while (t == null);
+	
+	goto(t.position);
+	build(what);
+	goto(space());
+}

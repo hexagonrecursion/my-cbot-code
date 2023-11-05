@@ -1,0 +1,29 @@
+extern void object::Sniffer() {
+	while(distance2d(position, radar(BotFactory).position) < 2) {
+		motor(-1, -1);
+	}
+	motor(0, 0);
+	if(radar(Derrick) == null) {
+		goto(FindFlatNearCrystal());
+		sniff();
+		goto(space());
+	}
+	if(radar(PowerStation) == null) {
+		goto(flatspace(radar(SpaceShip).position, 5, 30, 100, 10));
+		sniff();
+		goto(space());
+	}
+}
+
+point FindFlatNearCrystal() {
+	object c[] = radarall(Crystal);
+	for(int i = 0; i < sizeof(c); ++i) {
+		point result = flatspace(c[i].position, 3, 0);
+		if(flatground(result, 3) > 2 && topo(result) > 0.1 && distance2d(result, c[i].position) < 15) {
+			return result;
+		}
+	}
+	message("FindFlatNearCrystal: can't find location");
+	object o;
+	return o.position; // crash
+}

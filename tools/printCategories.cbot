@@ -1,0 +1,20 @@
+extern void object::New()
+{
+	object o[] = radarall(Any);
+	int c[];
+	for(int i = 0; i < sizeof(o); ++i) {
+		bool found = false;
+		for(int j = 0; j < sizeof(c); ++j) {
+			if(c[j] == o[i].category) {
+				found = true;
+			}
+		}
+		if(not found) {
+			c[sizeof(c)] = o[i].category;
+		}
+	}
+	while(true) {
+		message(""+c);
+		wait(2);
+	}
+}

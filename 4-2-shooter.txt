@@ -1,0 +1,194 @@
+// Can't use goto(), move(), or turn() - I can't react to events while they are blocking
+extern void object::Shooter() {
+	if(distance2d(position, radar(BotFactory).position) < 5) {
+		turn(radar(BotFactory).orientation - orientation);
+		move(5);
+	}
+	
+	point safePoint = position;
+	point closestWormP = WaitRadar(AlienWorm).position;
+	string lastSay = "";
+	while(true) {
+		string say = "";
+		object closestWorm = radar(AlienWorm);
+		if(closestWorm != null) {
+			closestWormP = closestWorm.position;
+		}
+		
+		if(distance2d(position, safePoint) / 120 + temperature > 0.8) {
+			message("too hot");
+			Cool(safePoint);
+		} else if(energyCell.energyLevel < 0.5) {
+			message("low power");
+			Cool(safePoint);
+			Goto(PowerStation);
+			while(energyCell.energyLevel < 1);
+			jet(1);
+			wait(3);
+			safePoint = position;  // without this line we get stuck forever "too hot"
+		} else if(distance2d(position, closestWormP) > 30) {
+			say = "too far";
+			float z = max(0, topo(position)) + 1;
+			jet(0.2 * (z - position.z));
+			
+			float xy = distance2d(position, closestWormP);
+			float forward = min(1, 0.1 * (xy - 30));
+			if(radar(Any, 0, 180, 0, 8) != null) {
+				motor(forward, 0);
+			} else {
+				float fDir = direction(closestWormP) / 100;;
+				motor(forward - fDir, forward + fDir);
+			}
+			
+			safePoint = FindSafePoint(safePoint);
+		} else if(closestWorm == null) {
+			say = "no targets";
+			jet(IsSafe(position, 1) ? -0.5 : position.z - topo(position) > 1 ? 0 : 1);
+			Motor(safePoint);
+		} else if(velocity.z < 0 || position.z < 0.5) {
+			say = "falling";
+			motor(0, 0);
+			jet(1);
+		} else if(abs(velocity.x) + abs(velocity.y) + abs(velocity.z) > 0.1) {
+			say = "too fast";
+			motor(0, 0);
+			jet(0);
+		} else if(abs(direction(closestWormP)) > 20) {
+			say = "turning";
+			motor(-direction(closestWormP), direction(closestWormP));
+			jet(0);
+		} else {
+			say ="shooting";
+			motor(0, 0);
+			jet(0);
+			Shoot(closestWormP);
+		}
+		
+		if(say != "" && say != lastSay) {
+			message(say);
+		}
+		lastSay = say;
+	}
+}
+
+
+void object::Cool(point safePoint) {
+	bool isJetOn = true;
+	float safeZ = 0;
+	while(temperature > 0) {
+		if(not IsSafe(position, 1) && not isJetOn) {
+			isJetOn = true;
+			for(int angle = 0; angle < 360; angle += 90) {
+				point p = PointPlusRotatedLength(safePoint, angle, 2);
+				if(topo(p) > topo(safePoint)) {
+					safePoint = p;
+				}
+			}
+			safeZ = (safeZ + topo(safePoint)) / 2;
+		} else if (IsSafe(position, 1.5) && topo(position) > safeZ) {
+			isJetOn = false;
+		}
+		Motor(safePoint);
+		jet(not isJetOn ? -1 : position.z - max(0, topo(position)) > 1 ? 0 : 1);
+	}
+	jet(0);
+	motor(0, 0);
+}
+
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+point object::FindSafePoint(point lastSafePoint) {
+	for(int d = 0; d < 41; d += 10) {
+		point p = PointPlusRotatedLength(position, 360 * rand(), d * rand());
+		if(IsSafe(p, 2) && distance2d(p, lastSafePoint) < distance2d(position, lastSafePoint)) {
+			return p;
+		}
+	}
+	return lastSafePoint;
+}
+
+bool IsSafe(point p, float r) {
+	point p0(p.x + r, p.y);
+	point p1(p.x - r, p.y);
+	point p2(p.x, p.y + r);
+	point p3(p.x, p.y - r);
+	return topo(p) > 0 && topo(p0) > 0 && topo(p1) > 0 && topo(p2) > 0 && topo(p3) > 0;
+}
+
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+// Copied from utils.cdot
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	errmode(0);
+	while(goto(where) != 0) {
+		goto(space(position, 1));
+	}
+	errmode(1);
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+point PointPlusRotatedLength(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}

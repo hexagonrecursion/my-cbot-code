@@ -1,0 +1,10 @@
+extern void object::SubberBot()
+{
+	while(energyCell == null) {}
+	
+	goto(radar(BlackBox).position);
+	grab();
+	goto(radar(SpaceShip).position);
+	drop();
+	takeoff();
+}

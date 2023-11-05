@@ -1,0 +1,119 @@
+extern void object::WheeledGrabberBot()
+{
+	WantBuilding(ResearchCenter);
+	WantBuilding(RepairCenter);
+	WantBuilding(BotFactory);
+	WantResearch(ResearchWinged);
+	WantResearch(ResearchShooter);
+	while(radar(AlienAnt) != null) {
+		WantShooter();
+	}
+	takeoff();
+}
+
+void WantShooter() {
+	object shooters[] = radarall(WingedShooter);
+	for(int i = 0; i < sizeof(shooters); ++i) {
+		if(shooters[i].energyCell != null && shooters[i].energyCell.energyLevel > 0) {
+			return;
+		}
+	}
+	goto(radar(Titanium).position);
+	grab();
+	goto(WaitRadar(BotFactory).position);
+	drop();
+	goto(space());
+	factory(WingedShooter, "3-1-shooter.txt");
+	Recharge();
+	goto(radar(PowerCell).position);
+	grab();
+	Recharge();
+	object shooter = null;
+	do {
+		object shooters[] = radarall(WingedShooter);
+		for(int i = 0; i < sizeof(shooters); ++i) {
+			if(shooters[i].energyCell == null) {
+				shooter = shooters[i];
+			}
+		}
+	} while(shooter == null);
+	goto(shooter.position);
+	drop();
+	goto(space());
+}
+
+void WantResearch(int what)
+{
+	if(researched(what)){
+		return;
+	}
+	goto(radar(PowerCell).position);
+	grab();
+	Recharge();
+	goto(WaitRadar(ResearchCenter).position);
+	drop();
+	research(what);
+	while(isbusy(radar(ResearchCenter))) {}
+	grab();
+	goto(space());
+	drop();
+}
+
+void object::WantBuilding(int what)
+{
+	if(radar(what) == null) {
+		goto(search(Titanium, radar(SpaceShip).position, 0, 20).position);
+		grab();
+		goto(FinbSpaceForBuilding());
+		drop();
+		goto(space());
+	}
+}
+
+// Because flatspace returns space under water
+point FinbSpaceForBuilding() {
+	point result;
+	object obstacle;
+	float needDist;
+	do {
+		point p = PointPlusRotatedLength(radar(SpaceShip).position, 360 * rand(), 20 + 50 * rand());
+		result = flatspace(p, 5, 0);
+		obstacle = search(Any, result);
+		needDist = obstacle.category == Titanium ? 14 : 10;
+	} while(topo(result) < 0 || distance2d(obstacle.position, result) < needDist);
+	return result;
+	//////////
+	for(float dist = 30; true; dist += 1) {
+		for(int angle = 0; angle < 360; ++angle) {
+			point p = PointPlusRotatedLength(radar(SpaceShip).position, angle, dist);
+			object t = search(Titanium, p, 0);
+			if(flatground(p, 7) > 5 && topo(p) > 0 && (t == null || distance2d(t.position, p) > 10)) {
+				return p;
+			}
+		}
+	}
+	message("will never get here");
+	point p;
+	return p;
+}
+
+void object::Recharge()
+{
+	goto(WaitRadar(PowerStation).position);
+	while(energyCell.energyLevel < 1) {}
+	while(load != null && load.category == PowerCell && load.energyLevel < 1) {}
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+point PointPlusRotatedLength(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}

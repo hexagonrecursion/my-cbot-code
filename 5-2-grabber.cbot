@@ -1,0 +1,202 @@
+extern void object::Grabber() {
+	BuildTheTowers();
+	object titanium[] = radarall(Titanium);
+	WantBuilding(titanium);
+	Goto(PowerStation);
+	while(energyCell.energyLevel < 1);
+	WantBuilding(titanium);
+	WantBot(WingedShooter, "5-2-winged-shooter.txt", titanium);
+	while(radar(AlienAnt) != null);
+	takeoff();
+}
+
+void WantBuilding(object []titanium) {
+	GrabTitanium(titanium);
+	Goto(flatspace(radar(SpaceShip).position, 5, 20, 100, 10));
+	drop();
+	Goto(space());
+}
+
+void WantBot(int what, string program, object []titanium) {
+	GrabTitanium(titanium);
+	Goto(BotFactory);
+	drop();
+	Goto(space());
+	factory(what, program);
+	Grab(PowerCell);
+	Goto(what);
+	drop();
+	Goto(space());
+}
+
+void object::GrabTitanium(object []titanium) {
+	bool isEmpty = true;
+	for(int i = 0; i < sizeof(titanium); ++i) {
+		if(titanium[i] != null) {
+			isEmpty = false;
+		}
+	}
+	if(isEmpty) {
+		message("GrabTitanium: No titanium");
+		throw 1;
+	}
+	while(load == null || load.category != Titanium) {
+		if(load != null) {
+			drop();
+		}
+		for(int i = 0; i < sizeof(titanium); ++i) {
+			if(titanium[i] != null) {
+				Goto(titanium[i]);
+				grab();
+				break;
+			}
+		}
+	}
+	for(int i = 0; i < sizeof(titanium); ++i) {
+		if(titanium[i] == load) {
+			titanium[i] = null;
+		}
+	}
+}
+
+void BuildTheTowers() {
+	float r0 = 20;
+	point towers[] = {
+		new point(r0, r0),
+		new point(r0, -r0)
+	};
+	float r1 = 15;
+	point staging[] = {
+		new point(r1, r1),
+		new point(r1, -r1)
+	};
+	for(int i = 0; i < sizeof(towers); ++i) {
+		Grab(Titanium);
+		Goto(towers[i]);
+		drop();
+		Goto(new point(0, 7));
+		Grab(PowerCell);
+		Goto(staging[i]);
+		Goto(FindEmptyTower());
+		drop();
+	}
+}
+
+object FindEmptyTower() {
+	while(true) {
+		object t[] = radarall(DefenseTower);
+		for(int i = 0; i < sizeof(t); ++i) {
+			if(t[i].energyCell == null) {
+				return t[i];
+			}
+		}
+	}
+	return oNever();
+}
+
+// Copied from utils.cdot
+
+void object::Grab(int what) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop();
+		}
+		Goto(what);
+		grab();
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	while(!RawGoto(where)) {
+		message(category + ": goto failed");
+		RawGoto(space(position, 1));
+	}
+}
+
+bool RawGoto(point where) {
+	try {
+		goto(where);
+		return true;
+	} catch(210 /* goto impossible */) {
+	} catch(211 /* goto too complicated */) {
+	} catch(212 /* goto destination occupied */) {
+	}
+	return false;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+// This exists because typechecker is over-protective
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

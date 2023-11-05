@@ -1,0 +1,53 @@
+extern void object::WheeledGrabberBot() {
+	WantBuilding(Converter);
+	WantBuilding(BotFactory);
+	WantBot(Subber, "3-3-subber.txt");
+}
+
+void object::WantBuilding(int what) {
+	if(radar(what) == null) {
+		goto(WantTitanium());
+		grab();
+		goto(flatspace(radar(SpaceShip).position, 5, 20, 100, 10));
+		drop();
+		goto(space());
+		WaitRadar(what);
+	}
+}
+
+void object::WantBot(int what, string program) {
+	if(radar(what) == null) {
+		goto(WantTitanium());
+		grab();
+		goto(WaitRadar(BotFactory).position);
+		drop();
+		goto(space());
+		factory(what, program);
+		goto(radar(PowerCell).position);
+		grab();
+		goto(WaitRadar(what).position);
+		drop();
+		goto(space());
+	}
+}
+
+point WantTitanium() {
+	object titanium = radar(Titanium);
+	if(titanium != null) {
+		return titanium.position;
+	}
+	goto(radar(TitaniumOre).position);
+	grab();
+	goto(radar(Converter).position);
+	drop();
+	goto(space());
+	return WaitRadar(Titanium).position;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}

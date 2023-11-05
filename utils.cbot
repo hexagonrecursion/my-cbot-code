@@ -1,0 +1,123 @@
+// Copied from utils.cdot
+
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+void object::Grab(int what) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop();
+		}
+		Goto(what);
+		grab();
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	while(!RawGoto(where)) {
+		message(category + ": goto failed");
+		RawGoto(space(position, 1));
+	}
+}
+
+bool RawGoto(point where) {
+	try {
+		goto(where);
+		return true;
+	} catch(210 /* goto impossible */) {
+	} catch(211 /* goto too complicated */) {
+	} catch(212 /* goto destination occupied */) {
+	}
+	return false;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float Angle(point from, point to) {
+	return atan2(to.y - from.y, to.x - from.x);
+}
+
+// This exists because the typechecker is over-protective
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

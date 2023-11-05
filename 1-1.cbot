@@ -1,0 +1,94 @@
+extern void MainBot()
+{
+	DoResearch(ResearchTracked);
+	DoResearch(ResearchBuilder);
+	DoFactory(TrackedBuilder, "BuilderBot");
+	DoRefuel(TrackedBuilder);
+	goto(radar(SpaceShip).position);
+}
+
+public void BuilderBot()
+{
+	goto(radar(BlueFlag).position);
+	build(ExchangePost);
+	send("", 0);
+	goto(radar(SpaceShip).position);
+}
+
+void DoResearch(int Research)
+{
+	GrabFullPower();
+	
+	object researchCenter = radar(ResearchCenter);
+	goto(researchCenter.position);
+	drop();
+	
+	research(Research);
+	
+	while(not researched(Research)) {
+		wait(1);
+	}
+	
+	grab();
+	
+	goto(space());
+	drop();
+}
+
+void DoFactory(int bot, string program)
+{
+	SafeGrab(Titanium);
+	
+	object f = radar(BotFactory);
+	goto(f.position);
+	drop();
+	
+	move(-5);
+	
+	factory(bot, program);
+}
+
+void DoRefuel(int bot)
+{
+	GrabFullPower();
+	object t = null;
+	while (t == null) {
+		t = radar(bot);
+		wait(1);
+	}
+	goto(t.position);
+	drop();
+	move(-5);
+}
+
+void object::SafeGrab(object target) {
+	goto(target.position);
+	grab();
+	if(this.load != target) {
+		drop();
+		goto(target.position);
+		grab();
+	}
+}
+
+void SafeGrab(int category) {
+	SafeGrab(radar(category));
+}
+
+void GrabFullPower()
+{
+	object power;
+	object[] items = radarall(PowerCell);
+	for (int i = 0; i < sizeof(items); ++i)
+	{
+		if(items[i].energyLevel == 1) {
+			power = items[i];
+			break;
+		}
+	}
+	
+	SafeGrab(power);
+}
+
+
+

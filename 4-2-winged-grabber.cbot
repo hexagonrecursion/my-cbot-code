@@ -1,0 +1,51 @@
+extern void object::WingedGrabberBot()
+{
+	WaitRadar(TitaniumSpot);
+	if(radar(Derrick) == null) {
+		Goto(Titanium);
+		grab();
+		Goto(TitaniumSpot);
+		drop();
+		Goto(space());
+		grab(EnergyCell); // signal the builder
+		WaitRadar(Derrick);
+		drop(EnergyCell);
+	}
+	while(true) {
+		if(radar(PowerStation) != null && energyCell.energyLevel < 0.5) {
+			Goto(PowerStation);
+			while(energyCell.energyLevel < 1) {}
+		}
+		Goto(Derrick);
+		Goto(TitaniumOre);
+		grab();
+		while(radar(Titanium) != null) {}
+		Goto(Converter);
+		drop();
+		Goto(space());
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	errmode(0);
+	while(goto(where) != 0) {
+		goto(space(position, 1));
+	}
+	errmode(1);
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}

@@ -1,0 +1,91 @@
+public int []GetBuildOrder() {
+	int []ret = {BotFactory, Derrick, Converter, PowerStation};
+	return ret;
+}
+
+extern void object::WheeledGrabberBot() {
+	WantBuilding(BotFactory, flatspace(radar(SpaceShip).position, 5, 20, 100, 10));
+	WantBot(WingedSniffer, "4-2-sniffer.txt");
+	WaitRadar(Derrick);
+	WantBuilding(Converter, flatspace(radar(SpaceShip).position, 5, 20, 100, 10));
+	WantBuilding(PowerStation, WaitRadar(PowerSpot).position);
+	WantBot(WingedShooter, "4-2-shooter.txt");
+	int i = 0;
+	while(i < 20) {
+		wait(1);
+		++i;
+		if(radar(AlienWorm) != null) {
+			i = 0;
+		}
+	}
+	takeoff();
+}
+
+void object::WantBuilding(int what, point where) {
+	if(radar(what) != null) {
+		return;
+		
+	}
+	WantSufficientCharge();
+	
+	goto(WantTitanium());
+	grab();
+	goto(where);
+	drop();
+	goto(space());
+	grab(EnergyCell); // signal the builder
+	WaitRadar(what);
+	drop(EnergyCell);
+}
+
+void object::WantBot(int what, string program) {
+	if(radar(what) != null) {
+		return;
+	}
+	WantSufficientCharge();
+	
+	goto(WantTitanium());
+	grab();
+	goto(WaitRadar(BotFactory).position);
+	drop();
+	goto(space());
+	factory(what, program);
+	goto(WantPowerCell());
+	grab();
+	goto(WaitRadar(what).position);
+	drop();
+	goto(space());
+}
+
+void object::WantSufficientCharge() {
+	return;
+}
+
+point WantPowerCell() {
+	object p[] = radarall(PowerCell);
+	for(int i = 0; i < sizeof(p); ++i) {
+		if(p[i].energyLevel == 1) {
+			return p[i].position;
+		}
+	}
+	message("No full power cells");
+	object o;
+	return o.position;  // should crash
+}
+
+point WantTitanium() {
+	point p = WaitRadar(Titanium).position;
+	if(distance2d(p, radar(SpaceShip).position) < 15) {
+		goto(radar(SpaceShip).position);
+		return WaitRadar(Titanium).position;
+	}
+	return p;
+}
+
+object object::WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}

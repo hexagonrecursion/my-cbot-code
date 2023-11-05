@@ -1,0 +1,51 @@
+extern void object::Shooter() {
+	while(energyCell == null) {}
+	goto(space());
+	
+	while(true) {
+		object w;
+		while(null == (w = radar(AlienWorm))) {
+			jet(-1);
+		}
+		wait(2); // Maybe a worm closer to us is still under ground
+		while(null != (w = radar(AlienWorm)) && temperature < 0.9) {
+			turn(direction(w.position));
+			while(position.z < w.position.z + 0.5) {
+				jet(0.5);
+			}
+			jet(0);
+			move(max(0, distance2d(position, w.position) - 30));
+			w = radar(AlienWorm);
+			if(w == null) {
+				jet(-1);
+				continue;
+			}
+			Shoot(w);
+		}
+		if(temperature > 0.85) {
+			jet(-1);
+			wait(10);
+		}
+	}
+}
+
+void object::Shoot(object target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.position.z - myGunZ) / distance2d(target.position, position));
+	aim(vAngle - pitch, -direction(target.position));
+	fire(0.1);
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}

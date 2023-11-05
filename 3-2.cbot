@@ -1,0 +1,95 @@
+extern void object::Main() {
+	object t;
+	while(null !=(t = GetTarget())){
+		if(t.category == Target2) {
+			Visit(t, 5);
+		} else {
+			Visit(t, -30);
+			Shoot(t);
+		}
+	}
+	goto(radar(SpaceShip).position);
+	takeoff();
+}
+
+void object::Shoot(object target) {
+	message("Shoot " + target);
+	
+	// stabilize
+	motor(0, 0);
+	jet(0);
+	wait(1);
+	
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.position.z - myGunZ) / distance2d(target.position, position));
+	aim(vAngle - pitch, -direction(target.position));
+	fire(1);
+}
+
+void object::WantCool() {
+	if(temperature > 0.8) {
+		do {
+			jet(-1);
+		} while (temperature > 0);
+	}
+}
+
+object GetTarget() {
+	int t[] = {Target2, TargetBot};
+	return radar(t);
+}
+
+void object::Visit(object target, float overshootBy) {
+	message("Visit " + target);
+	point goal = target.position;
+	if(target.category == Target2) {
+		goal.z -= 1.5;
+	}
+	
+	float wantDist = distance2d(position, goal) + overshootBy;
+	point start = position;
+	while(distance2d(start, position) < wantDist || abs(CalcVerticalError(goal)) > 0.5) {
+		WantCool();
+		
+		float lastError = CalcVerticalError(goal);
+		wait(0.1);
+		// A PD-controller for the altitude
+		float error = CalcVerticalError(goal);
+		float p = 0.2 * error;
+		float d = 0.04 * (error - lastError) / 0.1;
+		jet(p + d);
+		
+		// A P-controller for rotation
+		float rotate = sin(direction(goal));
+		// An on-off controller for forward thrust
+		float forward = distance2d(start, position) < wantDist ? 1 : 0;
+		motor(forward - rotate, forward + rotate);
+	}
+	motor(0, 0);
+	jet(0);
+}
+
+float object::CalcVerticalError(point goal) {
+	point testAt = PointPlusRotatedLength(position, orientation, 1);
+	return max(goal.z, topo(testAt) + 1) - position.z;
+}
+
+point PointPlusRotatedLength(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}

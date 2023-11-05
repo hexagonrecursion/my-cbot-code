@@ -1,0 +1,30 @@
+extern void WingedGrabberBot() {
+	point mountain1(4, 98);
+	point mountain2(14, 119);
+	
+	goto(space());
+	WaitRadar(WingedBuilder);
+	goto(WaitRadar(Titanium).position);
+	grab();
+	goto(flatspace(mountain1, 5, 0, 100, 10));
+	drop();
+	goto(space());
+	WaitRadar(DefenseTower);
+	goto(WaitRadar(Titanium).position);
+	grab();
+	goto(flatspace(mountain2, 5, 0, 100, 10));
+	drop();
+	goto(radar(DefenseTower).position);
+	grab(EnergyCell);
+	drop();
+	WaitRadar(RadarStation);
+	takeoff();
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}

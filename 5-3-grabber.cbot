@@ -1,0 +1,189 @@
+extern void Grabber() {
+	while(sizeof(radarall(AlienAnt)) > 1) {
+		Refill();
+		GrabPowerCell();
+		object builder;
+		int count = 0;
+		while(count < 15) {
+			builder = search(TrackedBuilder, new point(-20, 87), 0, 10);
+			if(builder == null) {
+				count = 0;
+			} else {
+				++count;
+			}
+			wait(1);
+		}
+		Goto(TrackedBuilder);
+		Goto(space());
+		drop();
+		Goto(TrackedBuilder);
+		grab();
+		Goto(space());
+		GrabPowerCell();
+		Goto(TrackedBuilder);
+		drop();
+	}
+	Refill();
+	Grab(BlackBox);
+	Goto(SpaceShip);
+	drop();
+	while(radar(AlienAnt) != null);
+	takeoff();
+}
+
+void object::Refill() {
+	if(energyCell.energyLevel < 0.5) {
+		GrabPowerCell();
+		drop();
+		grab(EnergyCell);
+		drop(Behind);
+		grab();
+		drop(EnergyCell);
+	}
+}
+
+void object::GrabPowerCell() {
+	while(load == null || load.category != PowerCell || load.energyLevel < 1) {
+		if(load != null) {
+			drop();
+		}
+		object closest = null;
+		object c[] = radarall(PowerCell);
+		for(int i = 0; i < sizeof(c); ++i) {
+			if(c[i].energyLevel == 1) {
+				if(closest == null || distance2d(c[i].position, position) < distance2d(closest.position, position)) {
+					closest = c[i];
+				}
+			}
+		}
+		if(closest == null) {
+			message("GrabPowerCell: not found");
+			throw 1;
+		}
+		Goto(closest);
+		grab();
+	}
+}
+
+// Copied from utils.cdot
+
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+void object::Grab(int what) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop();
+		}
+		Goto(what);
+		grab();
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void Goto(float x, float y) {
+	point p(x, y);
+	Goto(p);
+}
+
+void object::Goto(point where) {
+	while(!RawGoto(where)) {
+		message(category + ": goto failed");
+		RawGoto(space(position, 1));
+	}
+}
+
+bool RawGoto(point where) {
+	try {
+		goto(where);
+		return true;
+	} catch(210 /* goto impossible */) {
+	} catch(211 /* goto too complicated */) {
+	} catch(212 /* goto destination occupied */) {
+	}
+	return false;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float Angle(point from, point to) {
+	return atan2(to.y - from.y, to.x - from.x);
+}
+
+// This exists because the typechecker is over-protective
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

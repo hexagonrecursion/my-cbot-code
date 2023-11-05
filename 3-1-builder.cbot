@@ -1,0 +1,44 @@
+extern void object::BuilderBot()
+{
+	if(radar(PowerStation) == null) {
+		
+		goto(radar(BlueFlag).position);
+		goto(radar(Titanium).position);
+		build(PowerStation);
+	}
+	Recharge();
+	DoBuild(ResearchCenter);
+	DoBuild(RepairCenter);
+	DoBuild(BotFactory);
+}
+
+void DoBuild(int what) {
+	if(radar(what) != null) {
+		return;
+	}
+	
+	object t;
+	do {
+		t = search(Titanium, radar(SpaceShip).position, 20, 100);
+	} while (t == null);
+	
+	goto(t.position);
+	build(what);
+}
+
+
+void object::Recharge()
+{
+	goto(WaitRadar(PowerStation).position);
+	while(energyCell.energyLevel < 1) {}
+	while(load != null && load.category == PowerCell && load.energyLevel < 1) {}
+}
+
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}

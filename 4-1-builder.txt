@@ -1,0 +1,25 @@
+extern void object::BuilderBot()
+{
+	DoBuild(Converter);
+	DoBuild(BotFactory);
+	DoBuild(ResearchCenter);
+}
+
+void DoBuild(int what) {
+	if(radar(what) != null) {
+		return;
+	}
+	
+	object t;
+	do {
+		t = search(Titanium, radar(SpaceShip).position, 20, 100);
+		object c = radar(Converter);
+		if(c != null && t != null && distance2d(c.position, t.position) < 5) {
+			t = null;
+		}
+	} while (t == null);
+	
+	goto(t.position);
+	build(what);
+	goto(space());
+}

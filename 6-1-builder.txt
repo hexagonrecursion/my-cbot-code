@@ -1,0 +1,144 @@
+extern void Builder()
+{
+	while(not researched(ResearchNuclearPlant));
+	WantBuilding(NuclearPlant);
+	Goto(space());
+}
+
+void WantBuilding(int what) {
+	Goto(WaitTitanium());
+	Build(what);
+}
+
+void Build(int what) {
+	errmode(0);
+	while(build(what) != 0) {
+		message("build() failed");
+	}
+	errmode(1);
+}
+
+object WaitTitanium() {
+	point ship = radar(SpaceShip).position;
+	int []blockers = {BotFactory, Converter, PowerPlant};
+	while(true) {
+		object t = search(Titanium, ship, 20);
+		if(t == null) continue;
+		if(search(blockers, t.position, 0, 3) != null) continue;
+		return t;
+	}
+	return oNever();
+}
+
+// Copied from utils.cdot
+
+void object::Grab(int what) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			RawGoto(space());
+			drop();
+		}
+		Goto(what);
+		grab();
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void Goto(float x, float y) {
+	point p(x, y);
+	Goto(p);
+}
+
+void object::Goto(point where) {
+	while(!RawGoto(where)) {
+		message(category + ": goto failed");
+		RawGoto(space(position, 1));
+	}
+}
+
+bool RawGoto(point where) {
+	try {
+		goto(where);
+		return true;
+	} catch(210 /* goto impossible */) {
+	} catch(211 /* goto too complicated */) {
+	} catch(212 /* goto destination occupied */) {
+	}
+	return false;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+// This exists because the typechecker is over-protective
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

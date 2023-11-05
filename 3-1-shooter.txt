@@ -1,0 +1,267 @@
+float MOVE_AT_ALTITUGE() { return 10; }
+float FIRE_DIST() { return 40; }
+float ANT_AVOID_DIST() { return 30; }
+float STAGING_DIST() { return 60; }
+float GRAVI_RADIUS() { return 30; }
+float MAX_HOP() { return 150; }
+
+extern void object::Shooter() {
+	while(energyCell == null) {}
+	errmode(0);
+	goto(space());  // unstuck from the factory
+	
+	object target;
+	while(null != (target = radar(AlienAnt))) {
+		message(sizeof(radarall(AlienAnt)) + " targets left");
+		
+		float targetDist = distance2d(position, target.position);
+		float rechargeAt = targetDist < MAX_HOP() ? 0.5 : 0.80;
+		float repairAt = (targetDist > MAX_HOP()) ? 1 : (targetDist > STAGING_DIST()) ? 0.75 : 0.5;
+		if(energyCell.energyLevel < rechargeAt) {
+			message("getting a recharge");
+			ToPoint(radar(PowerStation).position);
+			wait(10);
+		} else if(shieldLevel < repairAt) {
+			message("getting a repair");
+			ToPoint(radar(RepairCenter).position);
+			wait(10);
+		} else if(targetDist > STAGING_DIST()) {
+			message("moving closer to the target");
+			Hop(target.position);
+		} else {
+			Attack(target);
+		}
+	}
+	message("All targets destroyed");
+}
+
+void object::Attack(object target) {
+	if(MaxTopo(position, target.position) > max(topo(position), topo(target.position)) + 1) {
+		message("attack: blocked by terrain");
+		// TODO: find a better handling method
+		Hop(PointPlusRotatedLength(target.position, 360 * rand(), MAX_HOP() / 3));
+	} else {
+		message("attacking");
+		point stagingPoint = position;
+		turn(direction(target.position));
+		if(distance2d(position, target.position) > FIRE_DIST()) {
+			FlyMove(distance2d(position, target.position) - FIRE_DIST());
+		}
+		ToHeight(max(topo(position), min(position.z, target.position.z)));  // XXX: drops me into water
+		Shoot(target);
+		if(temperature > 0) {
+			message("finding a safe spot to land");
+			float dist = 0;
+			for(int i = 0; not IsGoodHop(PointPlusRotatedLength(position, orientation, dist)); ++i) {
+				dist = 4 * i * (i % 2 - 0.5);
+			}
+			FlyMove(dist);
+			WantCool();
+		}
+	}
+}
+
+void object::FlyMove(float dist) {
+	float speed = (dist > 0) ? 1 : -1;
+	point start = position;
+	point checkPoc = position;
+	float checkTime = abstime();
+	while(distance2d(start, position) < abs(dist)) {
+		if(checkTime + 1 < abstime()) {
+			if(distance(checkPoc, position) < 1) {
+				message("ToHeight stuck");
+				break;
+			}
+			checkPoc = position;
+			checkTime = abstime();
+		}
+		if(position.z < max(topo(position), 0) + 2 ) {
+			motor(0.5 * speed, 0.5 * speed);
+			jet(1);
+		} else {
+			motor(speed, speed);
+			jet(0);
+		}
+	}
+	motor(0, 0);
+	jet(0);
+}
+
+void object::WantCool() {
+	jet(-1);
+	while(temperature > 0) {}
+}
+
+void object::ToPoint(point waypoint) {
+	while(distance2d(position, waypoint) > 1) {
+		Hop(waypoint);
+	}
+}
+
+void object::Hop(point destination) {
+	point hop;
+	while(true) {
+		hop = GetHopPoint(destination);
+		if(hop.z > -100) {
+			break; // no errors
+		} else if(hop.z == -200) {
+			int obstacles[] = {GraviPlant, SpaceShip, AlienAnt};
+			object obst = radar(obstacles);
+			message("hop: trying to get away from " + obst.category);
+			turn(direction(obst.position));
+			FlyMove(-2);
+		} else {
+			destination = PointPlusRotatedLength(position, 360 * rand(), MAX_HOP() / 3);
+			message("hop: randomizing the destination " + destination);
+		}
+	}
+	turn(direction(hop));
+	ToHeight(MaxTopo(position, hop) + MOVE_AT_ALTITUGE());
+	float dist = distance2d(position, hop);
+	if(move(dist) != 0) {
+		message("hop: move() failed: trying to get unstuck");
+		turn(360 * rand());
+		FlyMove(2);
+	}
+	message("made a hop of length " + dist + "; remaining distance: " + distance2d(position, destination));
+	WantCool();
+	message("cooled down");
+}
+
+point object::GetHopPoint(point destination) {
+	point start = position;  // position changes over time
+	float angle = atan2(destination.y - start.y, destination.x - start.x);
+	float dist = min(MAX_HOP(), distance2d(start, destination));
+	point hop = PointPlusRotatedLength(start, angle, dist);
+	if(not HitsObstacle(start, hop)) {
+		for(float dist2 = dist; dist2 > 1; dist2 -= max(1, min(5, dist2 / 5))) {
+			point hop = PointPlusRotatedLength(start, angle, dist2);
+			if(IsGoodHop(hop)) {
+				return hop;
+			}
+		}
+		point err(0, 0, -300);
+		message("hop: no valid landing point");
+		return err;
+	}
+	int i;
+	float dAngle;
+	for(i = 0; i < 360; ++i) {
+		int sign = (i % 2) == 0 ? 1 : -1;
+		// 7 is prime
+		dAngle = sign * ((i * 7) % 360);
+		hop = PointPlusRotatedLength(start, angle + dAngle, dist);
+		if(not HitsObstacle(start, hop)) {
+			break;
+		}
+	}
+	if(i == 360) {
+		message("hop: no valid angle");
+		point err(0, 0, -200);
+		return err;
+	}
+	point lastGoodHop(0, 0, -300);
+	for(float dist2 = 1; dist2 < max(dist + 1, 2); dist2 += 5) {
+		hop = PointPlusRotatedLength(start, angle + dAngle, dist2);
+		if(IsGoodHop(hop)){
+			lastGoodHop = hop;
+			if(not HitsObstacle(hop, destination)) {
+				return hop;
+			}
+		}
+	}
+	if(lastGoodHop.z == -300) {
+		message("hop: no valid landing point");
+	}
+	return lastGoodHop;
+}
+
+bool IsGoodHop(point p) {
+	float minTopo = topo(p);
+	float maxTopo = topo(p);
+	for(float a = 0; a < 360; a += 60) {
+		minTopo = min(minTopo, topo(PointPlusRotatedLength(p, a, 2)));
+		maxTopo = max(maxTopo, topo(PointPlusRotatedLength(p, a, 2)));
+	}
+	bool antOk = radar(AlienAnt) == null || distance2d(p, radar(AlienAnt).position) > ANT_AVOID_DIST();
+	bool topoOk = minTopo > 1 || (minTopo > 0 && maxTopo - minTopo < 1);
+	return topoOk && antOk;
+}
+
+point PointPlusRotatedLength(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+bool HitsObstacle(point p1, point p2) {
+	int obstacles[] = {GraviPlant, SpaceShip};
+	object plants[] = radarall(obstacles);
+	for(int i = 0; i < sizeof(plants); ++i) {
+		point p0 = plants[i].position;
+		// See wiki for formula (distance from point to line)
+		float dist = abs(
+		    (p2.x - p1.x) * (p1.y - p0.y) - (p1.x - p0.x) * (p2.y - p1.y)
+		) / distance2d(p1, p2);
+		if(dist < GRAVI_RADIUS()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void object::Shoot(object target) {
+	// stabilize
+	motor(0, 0);
+	jet(0);
+	wait(1);
+	
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.position.z - myGunZ) / distance2d(target.position, position));
+	aim(vAngle - pitch, -direction(target.position));
+	fire(1);
+}
+
+void object::ToHeight(float h) {
+	float updown = (position.z > h) ? -0.5 : 0.5;
+	point checkPoc = position;
+	float checkTime = abstime();
+	jet(updown);
+	while((position.z - h) * updown < 0) {
+		if(checkTime + 1 < abstime()) {
+			if(distance(checkPoc, position) < 1) {
+				message("ToHeight stuck");
+				return;
+			}
+			checkPoc = position;
+			checkTime = abstime();
+		}
+	}
+	jet(0);
+}
+
+float MaxTopo(point a, point b) {
+	float inc = 1 / max(1, distance2d(a, b));
+	float result = max(topo(a), topo(b));
+	for(float f = inc; f < 1; f += inc) {
+		point mid;
+		mid.x = f * a.x + (1 - f) * b.x;
+		mid.y = f * a.y + (1 - f) * b.y;
+		result = max(result, topo(mid));
+	}
+	return result;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}

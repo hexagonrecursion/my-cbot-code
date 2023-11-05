@@ -1,0 +1,87 @@
+extern void object::WingedGrabberBot() {
+	move(10);
+	point p0(185, 285);
+	Goto(p0);
+	Goto(PowerCell);
+	grab();
+	Goto(PowerStation);
+	while(energyCell.energyLevel < 1 || load.energyLevel < 1);
+	point p1(170, 295);
+	Goto(p1);
+	Goto(WingedShooter);
+	drop();
+	while(radar(AlienAnt) != null);
+	Goto(BlackBox);
+	grab();
+	Goto(SpaceShip);
+	drop();
+	takeoff();
+}
+
+// Copied from utils.cdot
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	errmode(0);
+	while(goto(where) != 0) {
+		message(category + ": goto failed");
+		goto(space(position, 1));
+	}
+	errmode(1);
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+point PointPlusRotatedLength(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}

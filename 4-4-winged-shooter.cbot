@@ -1,0 +1,157 @@
+// Can't use goto(), move(), or turn() - I can't react to events while they are blocking
+extern void object::Shooter() {
+	point closestWormP = WaitRadar(AlienAnt).position;
+	string lastSay = "";
+	bool isJetOn = true;
+	while(true) {
+		string say = "";
+		object closestWorm = radar(AlienAnt);
+		if(closestWorm != null) {
+			closestWormP = closestWorm.position;
+		}
+		
+		if(temperature > 0.8) {
+			isJetOn = false;
+		} else if(temperature == 0) {
+			isJetOn = true;
+		}
+		
+		float myGunZ = position.z + 1;
+		float vAngle = atan((closestWormP.z - myGunZ) / distance2d(closestWormP, position));
+		if(energyCell.energyLevel < 0.5) {
+			message("low power");
+			Goto(PowerStation);
+			while(energyCell.energyLevel < 1);
+			jet(1);
+			wait(3);
+		} else if(distance2d(position, closestWormP) > 45) {
+			say = "too far";
+			float z = max(0, GetMaxTopo(position, 0.5)) + 9;
+			message("too far " + z + " " + position.z);
+			if(isJetOn) {
+				jet(0.2 * (z - position.z));
+			} else {
+				jet(-1);
+			}
+			
+			float xy = distance2d(position, closestWormP);
+			float forward = min(1, 0.1 * (xy - 30));
+			float fDir = direction(closestWormP) / 100;;
+			motor(forward - fDir, forward + fDir);
+			
+		} else if(closestWorm == null) {
+			say = "no targets";
+			jet(-1);
+		} else if(vAngle < -15){
+			say = "too high";
+			jet(-1);
+		} else if(abs(velocity.x) + abs(velocity.y) + abs(velocity.z) > 0.1) {
+			say = "too fast";
+			motor(0, 0);
+			jet(0);
+		} else if(abs(direction(closestWormP)) > 20) {
+			say = "turning";
+			motor(-direction(closestWormP), direction(closestWormP));
+			jet(0);
+		} else {
+			say ="shooting";
+			motor(0, 0);
+			jet(0);
+			Shoot(closestWormP);
+		}
+		
+		if(say != "" && say != lastSay) {
+			message(say);
+		}
+		lastSay = say;
+	}
+}
+
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+float GetMaxTopo(point p, float r) {
+	float result = topo(p);
+	for(int angle = 0; angle < 360; angle += 45) {
+		result = max(result, topo(PAL(p, angle, r)));
+	}
+	return result;
+}
+
+// Copied from utils.cdot
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	errmode(0);
+	while(goto(where) != 0) {
+		goto(space(position, 1));
+	}
+	errmode(1);
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}

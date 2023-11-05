@@ -1,0 +1,29 @@
+extern void object::Main()
+{
+	object t;
+	for(t = radar(Target2); t != null ; t = radar(Target2)) {
+		if(this.temperature > 0.8) {
+			do {
+				jet(-1);
+			} while (this.temperature > 0);
+		}
+		Visit(t);
+	}
+	goto(radar(SpaceShip).position);
+}
+
+void object::Visit(object t) {
+	point p = t.position;
+	p.z -= 1.5;
+	
+	do {
+		jet(-0.5);
+	} while(p.z < this.position.z);
+	do {
+		jet(0.5);
+	} while(p.z > this.position.z);
+	jet(0);
+	
+	turn(direction(p));
+	move(distance(this.position, p) + 5);
+}

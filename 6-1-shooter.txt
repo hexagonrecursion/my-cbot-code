@@ -1,0 +1,183 @@
+extern void object::Shooter() {
+	Goto(new point(9, -37));
+	int obstacles[] = {TitaniumOre, Bush};
+	point waypoint0(48, 126);
+	point waypoint1(81, 133);
+	while(true) {
+		object ant = radar(AlienSpider);
+		if(ant == null) return;
+		point target = ant.position;
+		
+		if(distance2d(target, position) > 30) {
+			bool w0 = distance2d(target, position) > distance2d(waypoint0, position);
+			bool w1 = distance2d(waypoint1, position) > distance2d(waypoint0, position);
+			if(w0 && w1) {
+				goto(waypoint1);
+			} else {
+				float forward = 1;
+				float fDir = direction(target) / 180;
+				object obst = radar(obstacles, 0, 180, 0, 4);
+				if(obst != null) {
+					fDir -= 2 / distance2d(position, obst.position);
+				}
+				if(topo(PAL(position, orientation, 2)) > 0) {
+					motor(forward - fDir, forward + fDir);
+				} else {
+					motor(0, 0);
+				}
+			}
+		} else if(abs(direction(target)) > 10) {
+			turn(direction(target));
+		} else if(IsCollides(target) || abs(GetGunAngle(target)) > 20) {
+			if(topo(PAL(position, orientation + 180, 2)) > 0) {
+				motor(-1, -1);
+			} else {
+				motor(0.1, 0.1);
+			}
+		} else {
+			motor(0, 0);
+			Shoot(target);
+		}
+	}
+}
+
+float object::GetGunAngle(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	return vAngle - pitch;
+}
+
+bool object::IsCollides(point target) {
+	point gun(position.x, position.y, position.z + 1);
+	for(float f = 0; f < 1; f += 1.0/16) {
+		point p = add(mul(f, target), mul(1 - f, gun));
+		if(topo(p) > p.z) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Copied from utils.cdot
+
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+void object::Grab(int what) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop();
+		}
+		Goto(what);
+		grab();
+	}
+}
+
+void Goto(int where) {
+	Goto(WaitRadar(where));
+}
+
+void Goto(object where) {
+	Goto(where.position);
+}
+
+void object::Goto(point where) {
+	while(!RawGoto(where)) {
+		message(category + ": goto failed");
+		RawGoto(space(position, 1));
+	}
+}
+
+bool RawGoto(point where) {
+	try {
+		goto(where);
+		return true;
+	} catch(210 /* goto impossible */) {
+	} catch(211 /* goto too complicated */) {
+	} catch(212 /* goto destination occupied */) {
+	}
+	return false;
+}
+
+object WaitRadar(int what) {
+	object p;
+	do {
+		p = radar(what);
+	} while (p == null);
+	return p;
+}
+
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float Angle(point from, point to) {
+	return atan2(to.y - from.y, to.x - from.x);
+}
+
+// This exists because the typechecker is over-protective
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

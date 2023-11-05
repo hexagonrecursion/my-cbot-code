@@ -1,0 +1,129 @@
+extern void object::LeaderGrabber()
+{
+	WantBuild(Converter, 23);
+	
+	if(radar(PowerCell).energyLevel > energyCell.energyLevel) {
+		goto(radar(PowerCell).position);
+		grab(EnergyCell);
+		drop(Behind);
+		grab();
+		drop(EnergyCell);
+	}
+	
+	WantTitanium();
+	WantBuild(PowerStation, 35);
+	WantRecharge();
+	WantTitanium();
+	WantBuild(RadarStation, 50);
+	
+	if(radar(PowerCell) != null) {
+		goto(radar(PowerCell).position);
+		grab();
+		goto(radar(PowerStation).position);
+		wait(5);
+		goto(radar(WingedGrabber).position);
+		drop();
+	}
+	goto(radar(SpaceShip).position);
+}
+
+public void FollowerBuilder()
+{
+	DoBuild(Converter);
+	DoBuild(PowerStation);
+	while(radar(WheeledGrabber).energyCell.energyLevel < 0.3) {}
+	while(distance(radar(WheeledGrabber).position, radar(PowerStation).position) < 10) {}
+	WantRecharge();
+	DoBuild(RadarStation);
+}
+
+public void object::FollowerWingedGrabber()
+{
+	if(this.energyCell != null && this.energyCell.energyLevel < 0.5) {
+		grab(EnergyCell);
+		drop();
+	}
+	while(this.energyCell == null ) {};
+	move(40);
+	goto(radar(BlackBox).position);
+	grab();
+	goto(radar(SpaceShip).position);
+	drop();
+	takeoff();
+}
+
+void WantTitanium()
+{
+	if(radar(Titanium) == null) {
+		goto(radar(TitaniumOre).position);
+		grab();
+		goto(radar(Converter).position);
+		drop();
+		
+		move(-1.5);
+	}
+}
+
+void object::WantRecharge()
+{
+	goto(radar(PowerStation).position);
+	while(energyCell.energyLevel < 1) {}
+}
+
+void object::WantBuild(int what, int offset)
+{
+	if(radar(what) != null) {
+		return;
+	}
+	
+	object t;
+	do {
+		t = radar(Titanium);
+	} while (t == null);
+	if (what == PowerStation) {
+		move(0.2);
+	} else {
+		goto(t.position);
+	}
+	grab();
+	
+	point where = radar(SpaceShip).position;
+	where.x += offset;
+	goto(where);
+	drop();
+	
+	if (what == PowerStation) {
+		turn(direction(radar(SpaceShip).position) - 90);
+		move(-6);
+	} else {
+		goto(space(position, 6));
+	}
+	
+	while(radar(what) == null) {}
+	
+	wait(10);
+}
+
+void DoBuild(int what)
+{
+	if(radar(what) != null) {
+		return;
+	}
+	
+	object t;
+	do {
+		t = search(Titanium, radar(SpaceShip).position, 20, 300);
+		if(t == null) {
+			continue;
+		}
+		object c = radar(Converter);
+		if(c != null && distance(c.position, t.position) < 5) {
+			t = null;
+		}
+	} while(t == null);
+	
+	wait(10);
+	goto(t.position);
+	build(what);
+	goto(space());
+}

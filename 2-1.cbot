@@ -1,0 +1,185 @@
+extern void GrabberMaster()
+{
+	Build b();
+	b.Need(ResearchCenter);
+	b.Need(BotFactory);
+	Research(ResearchWinged);
+	Robot(WingedGrabber, "OreBot");
+	goto(radar(SpaceShip).position);
+}
+
+public void BuilderBot()
+{
+	Build b();
+	b.Do();
+}
+
+public void object::OreBot()
+{
+	OreToShip();
+	OreToShip();
+	
+	GrabFullPower();
+	goto(space());
+	drop();
+	grab(EnergyCell);
+	drop(Behind);
+	grab();
+	drop(EnergyCell);
+	
+	OreToShip();
+	OreToShip();
+}
+
+void object::OreToShip()
+{
+	
+	object ship = radar(SpaceShip);
+	
+	goto(space());  // Unstuck
+	
+	goto(search(TitaniumOre, ship.position, 30).position);
+	grab();
+	
+	errmode(0);
+	bool done = false;
+	for(float dx = -4 ; dx < 4 && not done ; dx += 0.5 ) {
+		for(float dy = -4; dy < 4 && not done ; dy += 0.5) {
+			point p = radar(SpaceShip).position;
+			p.x += dx;
+			p.y += dy;
+			if(goto(p) != 0) {
+				continue;
+			}
+			while(drop() != 0) {
+				turn(1);
+			}
+			done = true;
+		}
+	}
+	errmode(1);
+	if(this.load != null) {
+		drop();
+	}
+}
+
+public class Build
+{
+	static bool busy = false;
+	static int what;
+	static point where;
+	void Need(int what) {
+		if (radar(what) != null) {
+			return;
+		}
+		
+		SafeGrab(Titanium);
+		
+		point where_ = space(radar(SpaceShip).position, 30, 300, 10);
+		goto(where_);
+		drop();
+		
+		goto(space());
+		
+		this.what = what;
+		where = where_;
+		busy = true;
+		
+		while (busy) {
+			wait(1);
+		}
+	}
+	
+	void Do() {
+		while(true) {
+			while(not busy) {
+				wait(1);
+			}
+			goto(search(Titanium, where).position);
+			build(what);
+			busy = false;
+		}
+	}
+}
+
+void Research(int research_)
+{
+	if(researched(research_)) {
+		return;
+	}
+	
+	object researchCenter = radar(ResearchCenter);
+	if(researchCenter.energyCell != null) {
+		goto(researchCenter.position);
+		grab();
+		goto(space());
+		drop();
+	}
+	
+	GrabFullPower();
+	goto(researchCenter.position);
+	drop();
+	research(research_);
+	while(isbusy(researchCenter)) {
+		wait(1);
+	}
+}
+
+void Robot(int bot, string program)
+{
+	if(radar(bot) != null) {
+		return;
+	}
+	
+	SafeGrab(Titanium);
+	goto(WaitRadar(BotFactory).position);
+	drop();
+	goto(space());
+	factory(bot, program);
+	
+	GrabFullPower();
+	goto(WaitRadar(bot).position);
+	drop();
+	goto(space());
+}
+
+void object::SafeGrab(object target) {
+	goto(target.position);
+	grab();
+	if(this.load != target) {
+		drop();
+		goto(target.position);
+		grab();
+	}
+}
+
+void SafeGrab(int category) {
+	SafeGrab(radar(category));
+}
+
+void GrabFullPower()
+{
+	object power;
+	object[] items = radarall(PowerCell);
+	for (int i = 0; i < sizeof(items); ++i)
+	{
+		if(items[i].energyLevel == 1) {
+			power = items[i];
+			break;
+		}
+	}
+	
+	SafeGrab(power);
+}
+
+object WaitRadar(int category)
+{
+	object ret = null;
+	while (ret == null) {
+		ret = radar(category);
+		wait(1);
+	}
+	return ret;
+}
+
+

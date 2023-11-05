@@ -35,7 +35,7 @@ void object::Grab(
 }
 
 void object::Grab(object what) {
-	while(load == what) {
+	while(load != what) {
 		if(load != null) {
 			drop(); // TODO: error handling
 		}

@@ -200,18 +200,18 @@ float Angle(point from, point to) {
 /// Suppress the "non-void function needs return" compiler error
 object oNever() {
 	message("will never get here");
-	throw 1;
+	throw 10;
 	return null;
 }
 
 point pNever() {
 	message("will never get here");
-	throw 1;
+	throw 10;
 	return new point();
 }
 
 int iNever() {
 	message("will never get here");
-	throw 1;
+	throw 10;
 	return 0;
 }

@@ -36,6 +36,46 @@ void object::GotoSpace() {
 	Goto(flatspace(position, 1));
 }
 
+/// goto() a free spot for a building within `raduis` of the `center` and drop() there
+///
+/// Works around quirks of flatspace():
+/// 1. flatspace(...) returns locations under water
+/// 2. flatspace(center, ...) returns `center` instead of signalling an error
+/// 3. Some buildings need a lot of space unoccupied by other buildings (max 14),
+///    but space() and flatspace() too often overlook useable locations if dist=14
+void DropAtBuildable(point center, float raduis) {
+	point dropHere(nan, nan);
+	for(int i = 1; i < 100; ++i) {
+		point p(center.x + raduis*rand(), center.y +raduis*rand());
+		point test = flatspace(p, 5, 0);
+		if(test.x == nan) {
+			continue;
+		}
+		if(topo(test) < 0) {
+			continue;
+		}
+		if(distance2d(test, center) > raduis) {
+			continue;
+		}
+		if(search(Any, test, 0, 14) != null) {
+			continue;
+		}
+		if(flatground(test, 5) < 5) {
+			continue;
+		}
+		if(dropHere.x == nan || distance2d(test, center) < distance2d(dropHere, center)) {
+			dropHere = test;
+		}
+	}
+	if(dropHere.x == nan) {
+		message("DropAtBuildable: suitable location not found");
+		throw GetUnusedErrorCode();
+	}
+	Goto(dropHere);
+	move(-1.2); // adjust because robots drop items about 1.2 ahead of them
+	drop();
+}
+
 /// Wait for an object to appear, goto() it, and grab() it
 ///
 /// Works around quirks of the built-in grab():

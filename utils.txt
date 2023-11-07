@@ -236,18 +236,24 @@ float Angle(point from, point to) {
 /// Suppress the "non-void function needs return" compiler error
 object oNever() {
 	message("will never get here");
-	throw 10;
+	throw GetUnusedErrorCode();
 	return null;
 }
 
 point pNever() {
 	message("will never get here");
-	throw 10;
+	throw GetUnusedErrorCode();
 	return new point();
 }
 
 int iNever() {
 	message("will never get here");
-	throw 10;
+	throw GetUnusedErrorCode();
 	return 0;
+}
+
+
+/// return an error code not used by the game
+int GetUnusedErrorCode() {
+	return 10;
 }

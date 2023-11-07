@@ -221,7 +221,7 @@ point mul(float f, point p) {
 
 
 /// convert to/from angles
-// Point + angle + length
+/// Point + angle + length
 point PAL(point p, float angle, float length) {
 	p.x += length * cos(angle);
 	p.y += length * sin(angle);

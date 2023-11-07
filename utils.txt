@@ -1,5 +1,34 @@
 // Copied from utils.txt
 
+/// Recharge if need to and able
+void object::MaybeUsePowerStation(float threshold=0.5) {
+	if(radar(PowerStation) == null) {
+		return;
+	}
+	float energy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+	if(energy > threshold) {
+		return;
+	}
+	while(energy < 1) {
+		float newEnergy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+		// Because sometimes goto() stops early
+		if(newEnergy <= energy) {
+			Goto(PowerStation);
+		}
+		energy = newEnergy;
+		wait(1);
+	}
+	GotoSpace();
+}
+
+/// Private. Do not use outside MaybeUsePowerStation()
+float _GetEnergyLevel(object o) {
+	if(o == null || o.category != PowerCell ) {
+		return 1;
+	}
+	return o.energyLevel;
+}
+
 /// Use this to avoid blocking a location for another robot
 void object::GotoSpace() {
 	// using flatspace() because space() sometimes

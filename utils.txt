@@ -55,7 +55,7 @@ void object::Shoot(point target) {
 /// grab(), but handles the case where nothing or the wrong object is grabbed
 void object::Grab(
     int what,
-    point pos=new point,
+    point pos=new point(nan, nan),
     float min=0,
     float max=1000,
     float sens=1,
@@ -83,7 +83,7 @@ void object::Grab(object what) {
 /// goto(), but with error handling
 void object::Goto(
     int where,
-    point pos=new point,
+    point pos=new point(nan, nan),
     float min=0,
     float max=1000,
     float sens=1,
@@ -164,13 +164,13 @@ int RawBuild(int what) {
 /// Wait from an object of a specific category to appear and return it
 object object::WaitSearch(
     int what,
-    point pos=new point,
+    point pos=new point(nan, nan),
     float min=0,
     float max=1000,
     float sens=1,
     int filter=FilterNone
 ) {
-	if(pos == new point) {
+	if(pos.x == nan) {
 		pos = position;
 	}
 	object p;

@@ -1,5 +1,12 @@
 // Copied from utils.txt
 
+/// Use this to avoid blocking a location for another robot
+void object::GotoSpace() {
+	// using flatspace() because space() sometimes
+	// returns locations on the ramp of the ship and goto() gets stuck
+	Goto(flatspace(position, 1));
+}
+
 /// motor() toward a point
 void object::Motor(point target) {
 	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);

@@ -56,7 +56,7 @@ void object::Goto(
 	// note: using RawGoto() instead of Goto(object) because maybe a different object is not closer
 	while(RawGoto(WaitSearch(where, pos, min, max, sens, filter).position) != 0) {
 		message(category + ": goto failed");
-		RawGoto(space(position, 1));
+		wait(1);
 	}
 }
 
@@ -64,14 +64,14 @@ void object::Goto(object where) {
 	// note: using RawGoto() instead of Goto(point) because where.position may have changed
 	while(RawGoto(where.position) != 0) {
 		message(category + ": goto failed");
-		RawGoto(space(position, 1));
+		wait(1);
 	}
 }
 
 void object::Goto(point where) {
 	while(RawGoto(where) != 0) {
 		message(category + ": goto failed");
-		RawGoto(space(position, 1));
+		wait(1);
 	}
 }
 

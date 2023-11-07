@@ -1,0 +1,251 @@
+extern void LeggedGrabberBot() {
+	Goto(SpaceShip);
+	takeoff();
+}
+
+// Copied from utils.txt
+
+/// Recharge if need to and able
+void object::MaybeUsePowerStation(float threshold=0.5) {
+	if(radar(PowerStation) == null) {
+		return;
+	}
+	float energy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+	if(energy > threshold) {
+		return;
+	}
+	while(energy < 1) {
+		float newEnergy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+		// Because sometimes goto() stops early
+		if(newEnergy <= energy) {
+			Goto(PowerStation);
+		}
+		energy = newEnergy;
+		wait(1);
+	}
+	Goto(space());
+}
+
+/// Private. Do not use outside MaybeUsePowerStation()
+float _GetEnergyLevel(object o) {
+	if(o == null || o.category != PowerCell ) {
+		return 1;
+	}
+	return o.energyLevel;
+}
+
+/// motor() toward a point
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+/// Aim and fire
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+
+/// grab(), but handles the case where nothing or the wrong object is grabbed
+void object::Grab(
+    int what,
+    point pos=new point,
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop(); // TODO: error handling
+		}
+		Goto(what, pos, min, max, sens, filter);
+		grab(); // TODO: RawGrab()
+	}
+}
+
+void object::Grab(object what) {
+	while(load != what) {
+		if(load != null) {
+			drop(); // TODO: error handling
+		}
+		Goto(what);
+		grab(); // TODO: RawGrab()
+	}
+}
+
+/// goto(), but with error handling
+void object::Goto(
+    int where,
+    point pos=new point,
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	// note: using RawGoto() instead of Goto(object) because maybe a different object is not closer
+	while(RawGoto(WaitSearch(where, pos, min, max, sens, filter).position) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+void object::Goto(object where) {
+	// note: using RawGoto() instead of Goto(point) because where.position may have changed
+	while(RawGoto(where.position) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+void object::Goto(point where) {
+	while(RawGoto(where) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+
+/// error-code-returning versions of built-ins that do not alter the current errmode
+int RawGoto(point where, float altitude=0, int goal=-1, int crash=-1) {
+	try {
+		goto(where, altitude, goal, crash);
+		return 0;
+	} catch(210 /* goto impossible */) {
+		return 210;
+	} catch(211 /* goto too complicated */) {
+		return 211;
+	} catch(212 /* goto destination occupied */) {
+		return 212;
+	}
+	return iNever();
+}
+
+int RawBuild(int what) {
+	try {
+		build(what);
+		return 0;
+	} catch(120 /* not possible in flight */) {
+		return 120;
+	} catch(121 /* not possible under water */) {
+		return 121; 
+	} catch(123 /* lack of metal (too far) */) {
+		return 123; 
+	} catch(124 /* lack of metal (too close) */) {
+		return 124; 
+	} catch(125 /* lack of metal */) {
+		return 125; 
+	} catch(126 /* not enough flat ground */) {
+		return 126; 
+	} catch(127 /* not enough flat ground space */) {
+		return 127; 
+	} catch(128 /* location occupied */) {
+		return 128; 
+	} catch(129 /* too close to the rocket */) {
+		return 129; 
+	} catch(130 /* buildings too close */) {
+		return 130; 
+	} catch(131 /* not possible in movement */) {
+		return 131; 
+	} catch(132 /* can not produce this object in this mission */) {
+		return 132; 
+	} catch(133 /* can not produce not researched object */) {
+		return 133; 
+	}
+	return iNever();
+}
+
+/// Wait from an object of a specific category to appear and return it
+object object::WaitSearch(
+    int what,
+    point pos=new point,
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	if(pos == new point) {
+		pos = position;
+	}
+	object p;
+	do {
+		p = search(what, pos, min, max, sens, filter);
+	} while (p == null);
+	return p;
+}
+
+
+/// min/max
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+
+/// Vector math
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+
+/// convert to/from angles
+// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float Angle(point from, point to) {
+	return atan2(to.y - from.y, to.x - from.x);
+}
+
+
+/// Suppress the "non-void function needs return" compiler error
+object oNever() {
+	message("will never get here");
+	throw 1;
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw 1;
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw 1;
+	return 0;
+}

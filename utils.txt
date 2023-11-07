@@ -37,21 +37,6 @@ void object::GotoSpace() {
 	Goto(flatspace(position, 1));
 }
 
-/// motor() toward a point
-void object::Motor(point target) {
-	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
-	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
-	motor(forward - fDir, forward + fDir);
-}
-
-/// Aim and fire
-void object::Shoot(point target) {
-	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
-	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
-	aim(vAngle - pitch, -direction(target));
-	fire(0.1);
-}
-
 /// Wait for an object to appear, goto() it, and grab() it
 ///
 /// Works around quirks of the built-in grab():
@@ -193,6 +178,22 @@ object object::WaitSearch(
 		p = search(what, pos, min, max, sens, filter);
 	} while (p == null);
 	return p;
+}
+
+
+/// motor() toward a point
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+/// Aim and fire
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
 }
 
 

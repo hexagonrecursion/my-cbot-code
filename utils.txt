@@ -105,6 +105,10 @@ void object::Goto(object where) {
 }
 
 void object::Goto(point where) {
+	if(where.x == nan || where.y == nan) {
+		message("can't go to nan");
+		throw GetUnusedErrorCode();
+	}
 	while(RawGoto(where) != 0) {
 		message(category + ": goto failed");
 		wait(1);

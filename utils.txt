@@ -30,6 +30,7 @@ float _GetEnergyLevel(object o) {
 }
 
 /// Use this to avoid blocking a location for another robot
+/// Go to an unoccupied space nearby
 void object::GotoSpace() {
 	// using flatspace() because space() sometimes
 	// returns locations on the ramp of the ship and goto() gets stuck
@@ -51,8 +52,11 @@ void object::Shoot(point target) {
 	fire(0.1);
 }
 
-
-/// grab(), but handles the case where nothing or the wrong object is grabbed
+/// Wait for an object to appear, goto() it, and grab() it
+///
+/// Works around quirks of the built-in grab():
+/// 1. grab() sometimes grabs thin air
+/// 2. grab() sometimes grabs a different object from the one you intended
 void object::Grab(
     int what,
     point pos=new point(nan, nan),
@@ -70,6 +74,11 @@ void object::Grab(
 	}
 }
 
+/// goto() an object and grab() it
+///
+/// Works around quirks of the built-in grab():
+/// 1. grab() sometimes grabs thin air
+/// 2. grab() sometimes grabs a different object from the one you intended
 void object::Grab(object what) {
 	while(load != what) {
 		if(load != null) {
@@ -80,7 +89,7 @@ void object::Grab(object what) {
 	}
 }
 
-/// goto(), but with error handling
+/// Wait for an object to appear and goto() it (with retry)
 void object::Goto(
     int where,
     point pos=new point(nan, nan),
@@ -96,6 +105,7 @@ void object::Goto(
 	}
 }
 
+/// goto(where.position) with retry
 void object::Goto(object where) {
 	// note: using RawGoto() instead of Goto(point) because where.position may have changed
 	while(RawGoto(where.position) != 0) {
@@ -104,6 +114,7 @@ void object::Goto(object where) {
 	}
 }
 
+/// goto() with retry
 void object::Goto(point where) {
 	if(where.x == nan || where.y == nan) {
 		message("can't go to nan");

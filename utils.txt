@@ -29,10 +29,9 @@ float _GetEnergyLevel(object o) {
 	return o.energyLevel;
 }
 
-/// Use this to avoid blocking a location for another robot
 /// Go to an unoccupied space nearby
 void object::GotoSpace() {
-	// using flatspace() because space() sometimes
+	// Using flatspace() because space() sometimes
 	// returns locations on the ramp of the ship and goto() gets stuck
 	Goto(flatspace(position, 1));
 }

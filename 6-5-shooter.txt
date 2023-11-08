@@ -1,0 +1,9 @@
+extern void object::Shooter()
+{
+	goto(new point(-164, -25));
+	message("A");
+	goto(new point(34, -204));
+	message("B");
+	goto(radar(SpaceShip).position);
+	takeoff();
+}

@@ -1,0 +1,4 @@
+extern void object::Grabber() {
+	goto(new point(-9, 136), 1, 1);
+	goto(new point(83, 83));
+}

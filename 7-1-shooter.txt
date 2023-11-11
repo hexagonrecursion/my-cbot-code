@@ -1,0 +1,443 @@
+extern void object::Shooter() {
+	Goto(new point(5, 95));
+	turn(direction(new point(7, 102)));
+	
+	object target;
+	string lastSay = "";
+	point returnPosition = position;
+	float returnOrientation = orientation;
+	
+	while(null != (target = radar(AlienAnt))) {
+		string say = "";
+		
+		point targetP;
+		try {
+			targetP = target.position;
+		} catch(CBotErrDeletedPtr) {
+			continue;
+		}
+		
+		bool isClose = distance2d(position, targetP) < 40;
+		if(energyCell != null && energyCell.energyLevel < 0.1) {
+			say = "low power";
+			ClimbOutOfTheWay();
+		} else if(isClose && not IsBlocked(targetP)) {
+			float dir = direction(targetP) / 200;
+			float forward = pitch > 0 ? -1 : 1;
+			motor(forward - dir, forward + dir);
+			if(Aim(targetP)) {
+				say = "shooting";
+				fire(0.1);
+			} else {
+				say = "can't aim: out of range";
+			}
+		} else if(isClose) {
+			say = "blocked";
+			FollowTheLeftWall();
+		} else if(distance2d(returnPosition, position) > 0.5) {
+			// Return to a known-good location in case we got turned around while fighting
+			say = "moving back";
+			CrawlTo(returnPosition);
+		} else if(abs(SubtractAngle(returnOrientation, orientation)) > 2) {
+			// Return to a known-good rotation in case we got turned around while fighting
+			say = "turning back";
+			Face(returnOrientation);
+			returnPosition = position;
+		} else {
+			say = "moving closer";
+			FollowTheLeftWall();
+			returnPosition = position;
+			returnOrientation = orientation;
+		}
+		
+		if(say != "" && say != lastSay) {
+			message(say);
+		}
+		lastSay = say;
+	}
+}
+
+void object::CrawlTo(point p) {
+	float forward = abs(direction(p)) > 5 ? 0 : 1;
+	float fDir = direction(p) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+void object::ClimbOutOfTheWay() {
+	float forward = position.z < 5 ? 1 : sin(pitch);
+	float dir = sin(roll);
+	motor(forward + dir, forward - dir);
+}
+
+void object::FollowTheLeftWall() {
+	float h1 = topo(PAL(position, orientation + 45, 10));
+	float dir = 0.2 * (h1 - 15);
+	motor(1 + dir, 1 - dir);
+}
+
+void object::Face(float angle) {
+	float fDir = SubtractAngle(angle, orientation);
+	motor(-fDir, fDir);
+}
+
+float SubtractAngle(float a, float b) {
+	float result = a - b;
+	if(result > 0) {
+		while(result > 180) {
+			result -= 360;
+		}
+	} else {
+		while(result < -180) {
+			result += 360;
+		}
+	}
+	return result;
+}
+
+bool object::IsBlocked(point targetP) {
+	point p = PAL(targetP, Angle(targetP, position), 1);
+	return topo(p) > topo(targetP);
+}
+
+
+bool object::Aim(point target) {
+	point tmp;
+	
+	target.x -= position.x;
+	target.y -= position.y;
+	target.z -= position.z;
+	
+	tmp = target;
+	target.x = cos(orientation) * tmp.x + sin(orientation) * tmp.y;
+	target.y = cos(orientation) * tmp.y - sin(orientation) * tmp.x;
+	
+	tmp = target;
+	target.x = cos(pitch) * tmp.x + sin(pitch) * tmp.z;
+	target.z = cos(pitch) * tmp.z - sin(pitch) * tmp.x;
+	
+	tmp = target;
+	target.y = cos(roll) * tmp.y - sin(roll) * tmp.z;
+	target.z = cos(roll) * tmp.z + sin(roll) * tmp.y;
+	
+	// TODO: The gun is about 1 meter above the origin point of the bot. Adjust? 
+	
+	float hAngle = atan2(-target.y, target.x);
+	float vAngle = atan2(target.z, target.x);
+	aim(vAngle, hAngle);
+	return abs(vAngle) < 20 && abs(hAngle) < 40;
+}
+
+// Copied from utils.txt
+
+/// Recharge if need to and able
+void object::MaybeUsePowerStation(float threshold=0.5) {
+	if(radar(PowerStation) == null) {
+		return;
+	}
+	float energy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+	if(energy > threshold) {
+		return;
+	}
+	while(energy < 1) {
+		float newEnergy = min(_GetEnergyLevel(load), _GetEnergyLevel(energyCell));
+		// Because sometimes goto() stops early
+		if(newEnergy <= energy) {
+			Goto(PowerStation);
+		}
+		energy = newEnergy;
+		wait(1);
+	}
+	GotoSpace();
+}
+
+/// Private. Do not use outside MaybeUsePowerStation()
+float _GetEnergyLevel(object o) {
+	if(o == null || o.category != PowerCell ) {
+		return 1;
+	}
+	return o.energyLevel;
+}
+
+/// Go to an unoccupied space nearby
+void object::GotoSpace() {
+	// Using flatspace() because space() sometimes
+	// returns locations on the ramp of the ship and goto() gets stuck
+	Goto(flatspace(position, 1));
+}
+
+/// goto() a free spot for a building within `raduis` of the `center` and drop() there
+///
+/// Works around quirks of flatspace():
+/// 1. flatspace(...) returns locations under water
+/// 2. flatspace(center, ...) returns `center` instead of signalling an error
+/// 3. Some buildings need a lot of space unoccupied by other buildings (max 14),
+///    but space() and flatspace() too often overlook useable locations if dist=14
+void DropAtBuildable(point center, float raduis) {
+	point dropHere(nan, nan);
+	for(int i = 1; i < 100; ++i) {
+		point p(center.x + raduis*rand(), center.y +raduis*rand());
+		point test = flatspace(p, 5, 0);
+		if(test.x == nan) {
+			continue;
+		}
+		if(topo(test) < 0) {
+			continue;
+		}
+		if(distance2d(test, center) > raduis) {
+			continue;
+		}
+		if(search(Any, test, 0, 14) != null) {
+			continue;
+		}
+		if(flatground(test, 5) < 5) {
+			continue;
+		}
+		if(dropHere.x == nan || distance2d(test, center) < distance2d(dropHere, center)) {
+			dropHere = test;
+		}
+	}
+	if(dropHere.x == nan) {
+		message("DropAtBuildable: suitable location not found");
+		throw GetUnusedErrorCode();
+	}
+	Goto(dropHere);
+	move(-1.2); // adjust because robots drop items about 1.2 ahead of them
+	drop();
+}
+
+/// Wait for an object to appear, goto() it, and grab() it
+///
+/// Works around quirks of the built-in grab():
+/// 1. grab() sometimes grabs thin air
+/// 2. grab() sometimes grabs a different object from the one you intended
+void object::Grab(
+    int what,
+    point pos=new point(nan, nan),
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	while(load == null || load.category != what) {
+		if(load != null) {
+			drop(); // TODO: error handling
+		}
+		Goto(what, pos, min, max, sens, filter);
+		grab(); // TODO: RawGrab()
+	}
+}
+
+/// goto() an object and grab() it
+///
+/// Works around quirks of the built-in grab():
+/// 1. grab() sometimes grabs thin air
+/// 2. grab() sometimes grabs a different object from the one you intended
+void object::Grab(object what) {
+	while(load != what) {
+		if(load != null) {
+			drop(); // TODO: error handling
+		}
+		Goto(what);
+		grab(); // TODO: RawGrab()
+	}
+}
+
+/// Wait for an object to appear and goto() it (with retry)
+void object::Goto(
+    int where,
+    point pos=new point(nan, nan),
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	// note: using RawGoto() instead of Goto(object) because maybe a different object is not closer
+	while(RawGoto(WaitSearch(where, pos, min, max, sens, filter).position) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+/// goto(where.position) with retry
+void object::Goto(object where) {
+	// note: using RawGoto() instead of Goto(point) because where.position may have changed
+	while(RawGoto(where.position) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+/// goto() with retry
+void object::Goto(point where) {
+	if(where.x == nan || where.y == nan) {
+		message("can't go to nan");
+		throw GetUnusedErrorCode();
+	}
+	while(RawGoto(where) != 0) {
+		message(category + ": goto failed");
+		wait(1);
+	}
+}
+
+
+/// error-code-returning versions of built-ins that do not alter the current errmode
+int RawGoto(point where, float altitude=0, int goal=-1, int crash=-1) {
+	try {
+		goto(where, altitude, goal, crash);
+		return 0;
+	} catch(210 /* goto impossible */) {
+		return 210;
+	} catch(211 /* goto too complicated */) {
+		return 211;
+	} catch(212 /* goto destination occupied */) {
+		return 212;
+	}
+	return iNever();
+}
+
+int RawBuild(int what) {
+	try {
+		build(what);
+		return 0;
+	} catch(120 /* not possible in flight */) {
+		return 120;
+	} catch(121 /* not possible under water */) {
+		return 121; 
+	} catch(123 /* lack of metal (too far) */) {
+		return 123; 
+	} catch(124 /* lack of metal (too close) */) {
+		return 124; 
+	} catch(125 /* lack of metal */) {
+		return 125; 
+	} catch(126 /* not enough flat ground */) {
+		return 126; 
+	} catch(127 /* not enough flat ground space */) {
+		return 127; 
+	} catch(128 /* location occupied */) {
+		return 128; 
+	} catch(129 /* too close to the rocket */) {
+		return 129; 
+	} catch(130 /* buildings too close */) {
+		return 130; 
+	} catch(131 /* not possible in movement */) {
+		return 131; 
+	} catch(132 /* can not produce this object in this mission */) {
+		return 132; 
+	} catch(133 /* can not produce not researched object */) {
+		return 133; 
+	}
+	return iNever();
+}
+
+/// Wait from an object of a specific category to appear and return it
+object object::WaitSearch(
+    int what,
+    point pos=new point(nan, nan),
+    float min=0,
+    float max=1000,
+    float sens=1,
+    int filter=FilterNone
+) {
+	if(pos.x == nan) {
+		pos = position;
+	}
+	object p;
+	do {
+		p = search(what, pos, min, max, sens, filter);
+	} while (p == null);
+	return p;
+}
+
+
+/// motor() toward a point
+void object::Motor(point target) {
+	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
+	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
+	motor(forward - fDir, forward + fDir);
+}
+
+/// Aim and fire
+void object::Shoot(point target) {
+	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
+	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
+	aim(vAngle - pitch, -direction(target));
+	fire(0.1);
+}
+
+
+/// min/max
+float min(float a, float b) {
+	if(a < b) {
+		return a;
+	}
+	return b;
+}
+
+float max(float a, float b) {
+	if(a > b) {
+		return a;
+	}
+	return b;
+}
+
+
+/// Vector math
+point add(point a, point b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+point sub(point a, point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+point mul(float f, point p) {
+	p.x *= f;
+	p.y *= f;
+	p.z *= f;
+	return p;
+}
+
+
+/// convert to/from angles
+/// Point + angle + length
+point PAL(point p, float angle, float length) {
+	p.x += length * cos(angle);
+	p.y += length * sin(angle);
+	return p;
+}
+
+float Angle(point from, point to) {
+	return atan2(to.y - from.y, to.x - from.x);
+}
+
+
+/// Suppress the "non-void function needs return" compiler error
+object oNever() {
+	message("will never get here");
+	throw GetUnusedErrorCode();
+	return null;
+}
+
+point pNever() {
+	message("will never get here");
+	throw GetUnusedErrorCode();
+	return new point();
+}
+
+int iNever() {
+	message("will never get here");
+	throw GetUnusedErrorCode();
+	return 0;
+}
+
+
+/// return an error code not used by the game
+int GetUnusedErrorCode() {
+	return 10;
+}

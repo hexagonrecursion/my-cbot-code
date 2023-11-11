@@ -1,123 +1,6 @@
-extern void object::Grabber() {
-	UseNuclearCell();
-	BuildAll();
-	KillAnts();
-	if(not researched(ResearchOrgaShooter)) {
-		Grab(OrgaMatter);
-		Goto(AutoLab);
-		drop();
-		research(ResearchOrgaShooter, radar(AutoLab));
-	}
-	RunFactory(LeggedOrgaShooter, "7-1-orga-shooter.txt", RunConverter(), radar(PowerCell));
-}
-
-void KillAnts() {
-	while(null != search(AlienAnt, radar(UraniumOre).position, 0, 90)) {
-		object shooter = RunFactory(LeggedShooter, "7-1-shooter.txt", RunConverter(), radar(PowerCell));
-		WaitShooter(shooter);
-	}
-	
-	while(null != radar(AlienAnt)) {
-		object shooter = RunFactory(LeggedShooter, "7-1-shooter.txt", RunConverter(), RunNuclearPlant());
-		WaitShooter(shooter);
-	}
-}
-
-object object::RunNuclearPlant() {
-	Grab(UraniumOre);
-	object nuclearPlant = WaitSearch(NuclearPlant);
-	Goto(nuclearPlant);
-	drop();
-	GotoSpace();
-	while(isbusy(nuclearPlant));
-	Goto(nuclearPlant);
-	grab();
-	GotoSpace();
-	object result = load;
-	drop();
-	return result;
-}
-
-object RunConverter() {
-	Grab(TitaniumOre);
-	object converter = WaitSearch(Converter);
-	Goto(converter);
-	drop();
-	GotoSpace();
-	return WaitSearch(Titanium, converter.position, 0, 1);
-}
-
-object RunFactory(int what, string program, object titanium, object power) {
-	if(titanium.category != Titanium) {
-		message("RunFactory: wanted Titanium");
-		throw GetUnusedErrorCode();
-	}
-	if(power.category != PowerCell && power.category != NuclearCell) {
-		message("RunFactory: wanted PowerCell");
-		throw GetUnusedErrorCode();
-	}
-	
-	Grab(titanium);
-	object botFactory = WaitSearch(BotFactory);
-	Goto(botFactory);
-	drop();
-	GotoSpace();
-	factory(what, program);
-	Grab(power);
-	object result = WaitSearch(what, botFactory.position, 0, 2);
-	Goto(result);
-	drop();
-	GotoSpace();
-	return result;
-}
-
-void WaitShooter(object shooter) {
-	while(true) {
-		try {
-			if(radar(AlienAnt) == null) {
-				return;
-			}
-			if(shooter.shieldLevel == 0) {
-				return;
-			}
-			if(shooter.energyCell.energyLevel < 0.1) {
-				return;
-			}
-		} catch(CBotErrDeletedPtr) {
-			return;
-		}
-	}
-}
-
-void object::UseNuclearCell() {
-	if(energyCell.category != NuclearCell) {
-		Goto(NuclearCell);
-		grab(EnergyCell);
-		drop(Behind);
-		grab();
-		drop(EnergyCell);
-		grab(Behind);
-		drop();
-	}
-}
-
-void BuildAll() {
-	point base = radar(SpaceShip).position;
-	int toBuild[] = {Converter, BotFactory, AutoLab, NuclearPlant};
-	for(int i = 0; i < sizeof(toBuild); ++i) {
-		if(radar(toBuild[i]) != null) {
-			continue;
-		}
-		
-		if(toBuild[i] == Converter) {
-			Grab(Titanium);
-		} else {
-			Grab(RunConverter());
-		}
-		DropAtBuildable(base, 70);
-		GotoSpace();
-		while(radar(toBuild[i]) == null);
-	}
+extern void OrgaShooter() {
+	Goto(SpaceShip);
+	takeoff();
 }
 
 // Copied from utils.txt
@@ -235,6 +118,13 @@ void object::Grab(object what) {
 	}
 }
 
+/// build() with retry
+void object::Build(int what) {
+	while(RawBuild(what) != 0) {
+		message(category + ": build failed");
+	}
+}
+
 /// Wait for an object to appear and goto() it (with retry)
 void object::Goto(
     int where,
@@ -339,22 +229,6 @@ object object::WaitSearch(
 		p = search(what, pos, min, max, sens, filter);
 	} while (p == null);
 	return p;
-}
-
-
-/// motor() toward a point
-void object::Motor(point target) {
-	float forward = abs(direction(target)) > 45 ? 0 : distance2d(target, position);
-	float fDir = distance(target, position) < 0.5 ? 0 : direction(target) / 100;
-	motor(forward - fDir, forward + fDir);
-}
-
-/// Aim and fire
-void object::Shoot(point target) {
-	float myGunZ = position.z + 1;  // position.z is the bottom of the robot, I need the z of the gun
-	float vAngle = atan((target.z - myGunZ) / distance2d(target, position));
-	aim(vAngle - pitch, -direction(target));
-	fire(0.1);
 }
 
 

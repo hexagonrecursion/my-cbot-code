@@ -113,6 +113,13 @@ void object::Grab(object what) {
 	}
 }
 
+/// build() with retry
+void object::Build(int what) {
+	while(RawBuild(what) != 0) {
+		message(category + ": build failed");
+	}
+}
+
 /// Wait for an object to appear and goto() it (with retry)
 void object::Goto(
     int where,

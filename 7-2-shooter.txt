@@ -1,0 +1,20 @@
+extern void object::Shooter() {
+	object goals[] = radarall(GoalArea);
+	for(int g = 0; g < sizeof(goals); ++g) {
+		goto(goals[g].position);
+		object targets[] = searchall(TargetBot, position, 0, 40);
+		for(int t = 0; t < sizeof(targets); ++t) {
+			point pos = targets[t].position;
+			turn(direction(pos));
+			while(pitch < 2) {
+				motor(-0.2, -0.2);
+			}
+			motor(0, 0);
+			float vAngle = atan2(pos.z - position.z, distance2d(pos, position));
+			aim(vAngle - pitch, -direction(pos));
+			fire(0.1);
+		}
+	}
+	while(radar(TargetBot) != null);
+	takeoff();
+}

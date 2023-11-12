@@ -1,0 +1,36 @@
+extern void object::ShowHiddenObj() {
+	object visible[] = radarall(Any);
+	object obj;
+	int cat[];
+	for(int o = 0; null != (obj = retobject(o)); ++o) {
+		if(obj == this) {
+			continue;
+		}
+		if(obj.position.x == nan) {
+			continue;
+		}
+		int v;
+		for(v = 0; v < sizeof(visible); ++v) {
+			if(obj == visible[v]) {
+				break;
+			}
+		}
+		if(v < sizeof(visible)) {
+			continue;
+		}
+		int c;
+		for(c = 0; c < sizeof(cat); ++c) {
+			if(cat[c] == obj.category) {
+				break;
+			}
+		}
+		if(c < sizeof(cat)) {
+			continue;
+		}
+		cat[sizeof(cat)] = obj.category;
+	}
+	while(true) {
+		message(""+cat);
+		wait(2);
+	}
+}
